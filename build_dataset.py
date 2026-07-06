@@ -1,5 +1,5 @@
 import os
-os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
+os.environ["HF_XET_HIGH_PERFORMANCE"] = "1"
 import json
 import tqdm
 from datasets import load_dataset
@@ -39,7 +39,7 @@ def build_dataset(
     except Exception as e:
         print(f"Warning: failed to load dataset via `datasets`: {e}")
         # Fallback: handle CIFAR-10 via torchvision if HF Hub parsing fails
-        if dataset_name.lower().startswith("cifar10"):
+        if "cifar10" in dataset_name.lower():
             try:
                 from torchvision.datasets import CIFAR10
 
@@ -104,7 +104,7 @@ def build_dataset(
 if __name__ == "__main__":
 
     build_dataset(
-        "cifar10",
+        "uoft-cs/cifar10",
         target_count=20000,
         image_col="img",
         text_col="label",
