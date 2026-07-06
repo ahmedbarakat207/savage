@@ -116,5 +116,5 @@ if __name__ == "__main__":
         target_count=5000,
         image_col="image",
         text_col="caption",
-        streaming=True,
+        streaming=False,
     )
