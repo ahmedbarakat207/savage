@@ -1,3 +1,5 @@
+import os
+os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
 import json
 import tqdm
 from datasets import load_dataset
