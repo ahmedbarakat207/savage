@@ -1,85 +1,56 @@
-# Tiny Text-to-SVG Model
+# Savage SVG Generator
 
-A minimal, self-contained pipeline that treats SVG as a text-generation problem:
-you type a caption like `cat icon`, the model generates SVG code, character by character.
+Savage is a state-of-the-art text-to-SVG generation pipeline that fine-tunes **Qwen2.5-Coder-0.5B** to natively output highly detailed, multi-color vector illustrations and stencils based on text prompts.
 
-## What's in here
+Instead of generating pixels or relying on diffusion models, Savage treats scalable vector graphics (SVG) generation purely as a language modeling task, teaching an LLM the exact syntax and coordinate math needed to draw beautiful scalable vectors.
+
+## How It Works
+
+The magic of Savage lies in its custom data engine and efficient fine-tuning pipeline:
+
+1. **Dataset Engine (`build_dataset.py` & `image_to_svg.py`)**
+   We don't train on simple, pre-existing icons. Instead, we use `vtracer` to programmatically trace and vectorize massive photo datasets (like CIFAR-10 or Japanese Photos) into highly detailed, 3-tone posterized SVGs. The engine intelligently optimizes the SVGs to fit perfectly within the context window of modern LLMs (under 64,000 characters).
+2. **LoRA Fine-Tuning (`train.py`)**
+   We fine-tune Qwen2.5-Coder-0.5B using Parameter-Efficient Fine-Tuning (LoRA) on the generated dataset. The script supports local execution (MPS/CUDA) and is heavily optimized to run on **Kaggle** (via the `--kaggle` flag).
+3. **High-Speed Generation (`generate.py`)**
+   We use Apple's MLX (`mlx-lm`) to achieve incredible generation speeds on Apple Silicon, while seamlessly falling back to HuggingFace Transformers for other platforms.
+
+## Core Files
 
 | File | Purpose |
 |---|---|
-| `build_dataset.py` | Clones/parses icon libraries, normalizes SVGs, writes `data/dataset_raw.jsonl` |
-| `train_tokenizer.py` | Trains a byte-level BPE tokenizer on the caption+SVG corpus |
-| `model.py` | Tiny GPT-style decoder-only transformer (~1.2M params by default) |
-| `train.py` | CPU-friendly training loop, resumable, checkpoints periodically |
-| `generate.py` | Samples SVG from a text prompt, checks it's valid XML, saves it |
-| `data/dataset_raw.jsonl` | 7,827 cleaned (caption, SVG) pairs, ready to train on |
-| `tokenizer/` | The trained tokenizer (vocab.json + merges.txt) |
-| `ckpt.pt` | A checkpoint at step 460 — **early, not a finished model** (see below) |
+| `build_dataset.py` | Automatically downloads HuggingFace image datasets, vectorizes them into highly detailed SVGs, and outputs `dataset_raw.jsonl`. |
+| `image_to_svg.py` | The core vectorization engine under the hood. It removes backgrounds, posterizes images, and uses `vtracer` to generate beautiful, low-byte SVGs. |
+| `train.py` | The LoRA fine-tuning script for Qwen2.5-Coder-0.5B. Supports multi-GPU, MPS, and Kaggle environments out of the box. |
+| `generate.py` | The inference engine. Pass a prompt and it will stream the generated SVG to your console and save it to disk. Supports both `mlx` and `transformers`. |
+| `fuse.py` | Utility to permanently fuse the trained LoRA weights into the base Qwen model for faster inference. |
 
-## Where the data came from
+## Quickstart
 
-Cloned three MIT-licensed icon sets from GitHub and normalized every SVG (stripped
-IDs/classes/comments, rounded coordinates, minified):
-- **Feather** (287 icons) — caption from filename
-- **Bootstrap Icons** (2,085 icons) — caption from filename
-- **Tabler Icons** (6,146 icons, outline + filled) — caption from the `tags:` comment
-  each file ships with, e.g. `tags: [baking, birthday, cake, ...]`
-
-After dedup + length filtering (40–700 chars): **7,827 examples**, median SVG length
-~387 characters.
-
-## Honest status of `ckpt.pt`
-
-I trained this checkpoint for 460 steps on a **single CPU core** (this sandbox's limit)
-just to prove the whole pipeline works. Run `generate.py` on it and you'll see:
-
-- ✅ It already nails the SVG *wrapper* syntax perfectly — `xmlns`, `viewBox`,
-  `stroke-linecap`, etc. — because that's highly repetitive across the dataset.
-- ❌ It does **not** yet produce valid path data (`d="..."`) — the `M`/`L`/`A`/`Z`
-  path-command grammar and matching numeric structure needs a lot more training to
-  become consistent. Right now generated paths are XML-invalid.
-
-This is expected at this loss level (~1.5–1.8) — it's the very beginning of training,
-not a failure of the approach. The path grammar is the hard part; the wrapper syntax
-was the easy part.
-
-## How to actually train this to something usable
-
-You'll get real mileage on your own machine (more cores > this sandbox's 1 core):
-
+### 1. Build your dataset
 ```bash
-pip install torch tokenizers lxml --break-system-packages
+python3 build_dataset.py
+```
+This will start tracing images into text-ready SVGs and append them to `dataset_raw.jsonl`.
 
-# keep training from where I left off
-python3 train.py --steps 20000 --batch_size 32 --log_every 100 --save_every 200 --resume
+### 2. Train the model
+You can train locally or on Kaggle (T4x2 is recommended).
+```bash
+# Local training
+python3 train.py
+
+# Kaggle training
+python3 train.py --kaggle
 ```
 
-- Watch `train_loss` / `val_loss` in the printout. Also periodically run:
-  ```bash
-  python3 generate.py --prompt "cat icon" --n_samples 8
-  ```
-  and check the `N/8 valid XML` count at the end. **That fraction climbing toward 8/8
-  is your first real milestone** — it means the model has learned path syntax.
-  After that, quality of the actual shapes is the next thing to watch.
-- If training gets interrupted, `--resume` picks up from the last saved step
-  (checkpoints save every `--save_every` steps, not just at the end).
-- If you have more RAM/cores, bump `--batch_size` (32–64) before bumping model size —
-  bigger batches are the cheapest way to speed up convergence here.
+### 3. Generate SVGs
+Once trained, use the generation script to draw anything:
+```bash
+python3 generate.py --prompt "a beautiful orange cat" --engine mlx
+```
+*(Use `--engine transformers` if you are not on a Mac!)*
 
-## Scaling up later
-
-- **More/better data**: add more MIT icon sets (Lucide, Iconoir, Phosphor Icons) the
-  same way `build_dataset.py` does — just add their GitHub URLs and a caption rule.
-- **Bigger model**: `train.py --n_layer 6 --n_head 6 --n_embd 192` etc., once you've
-  confirmed the small one is learning — bump size only after the loss curve looks healthy.
-- **Beyond icons**: photorealistic "SVG photos" aren't realistic for this approach —
-  real photos as SVG are thousands of path commands, far beyond what a small
-  text model can learn. If you want to go past flat icons/illustrations, the research
-  directions to look at are diffusion-based vector graphics (e.g. VectorFusion-style
-  approaches) or larger transformer models trained on curated vector-art datasets
-  (e.g. the StarVector / IconShop papers) — different, heavier approach than this repo.
-
-## Licensing note
-
-Feather, Bootstrap Icons, and Tabler Icons are all MIT-licensed — fine to train on,
-attribution appreciated but not required.
+## Future Roadmap
+- Increase dataset size with high-quality captions (e.g., BLIP-generated captions).
+- Scale up the base model (e.g., 1.5B or 7B coders).
+- Improve the color-quantization logic for even richer SVGs while maintaining low token counts.
