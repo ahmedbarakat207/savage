@@ -31,7 +31,30 @@ def build_dataset(
     streaming=True,
 ):
     print(f"Downloading photo dataset {dataset_name} for {target_count} photos...")
-    ds = load_dataset(dataset_name, split="train", streaming=streaming)
+    cifar10_classes = None
+    try:
+        ds = load_dataset(dataset_name, split="train", streaming=streaming)
+    except Exception as e:
+        print(f"Warning: failed to load dataset via `datasets`: {e}")
+        # Fallback: handle CIFAR-10 via torchvision if HF Hub parsing fails
+        if dataset_name.lower().startswith("cifar10"):
+            try:
+                from torchvision.datasets import CIFAR10
+
+                cifar = CIFAR10(root="./.cache", train=True, download=True)
+                cifar10_classes = cifar.classes
+
+                def _cifar_gen():
+                    for img, label in cifar:
+                        yield {image_col: img, text_col: label}
+
+                ds = _cifar_gen()
+                streaming = False
+            except Exception as e2:
+                print(f"CIFAR fallback failed: {e2}")
+                raise
+        else:
+            raise
 
     count = 0
 
@@ -42,10 +65,14 @@ def build_dataset(
                 img = row[image_col]
                 caption = row[text_col]
 
-                if isinstance(caption, int) and hasattr(
-                    ds.features[text_col], "int2str"
-                ):
-                    caption = ds.features[text_col].int2str(caption)
+                if isinstance(caption, int):
+                    if cifar10_classes is not None:
+                        caption = cifar10_classes[caption]
+                    else:
+                        try:
+                            caption = ds.features[text_col].int2str(caption)
+                        except Exception:
+                            caption = str(caption)
                 else:
                     caption = str(caption)
 

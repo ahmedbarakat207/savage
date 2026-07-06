@@ -81,12 +81,9 @@ def main():
     )
     model = get_peft_model(model, lora_config)
 
-    dataset_path = (
-        "/kaggle/input/savage-svg-dataset/dataset_raw.jsonl"
-        if args.kaggle
-        else "dataset_raw.jsonl"
-    )
-    if not os.path.exists(dataset_path):
+    if args.kaggle:
+        dataset_path = "/kaggle/input/savage-svg-dataset/dataset_raw.jsonl"
+    else:
         dataset_path = "dataset_raw.jsonl"
 
     dataset = load_data(dataset_path).train_test_split(test_size=0.05)
