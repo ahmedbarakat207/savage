@@ -1,0 +1,9 @@
+transformers
+datasets
+peft
+trl
+accelerate
+cairosvg
+vtracer
+hf_transfer
+torchao>=0.16.1
