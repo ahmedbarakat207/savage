@@ -38,6 +38,7 @@ def main():
     parser.add_argument("--quick-test", action="store_true")
     parser.add_argument("--kaggle", action="store_true")
     parser.add_argument("--colab-fast", action="store_true")
+    parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
 
     model_id = "Qwen/Qwen2.5-Coder-0.5B"
@@ -160,7 +161,13 @@ def main():
         data_collator=DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False),
     )
 
-    trainer.train()
+    resume_ckpt = None
+    if args.resume and os.path.isdir(out_dir):
+        if any(d.startswith("checkpoint") for d in os.listdir(out_dir)):
+            resume_ckpt = True
+            print(f"Found existing checkpoints in {out_dir}, resuming training...")
+
+    trainer.train(resume_from_checkpoint=resume_ckpt)
     trainer.model.save_pretrained(final_dir)
     tokenizer.save_pretrained(final_dir)
 
