@@ -10,7 +10,6 @@ import image_to_svg
 
 def trace_image(img_pil):
     try:
-
         svg_str = image_to_svg.convert(
             input_path=img_pil,
             output_path=None,
@@ -23,6 +22,16 @@ def trace_image(img_pil):
     except Exception as e:
         print(f"Error tracing image: {e}")
         return ""
+
+def process_row(args):
+    img, caption, dataset_name = args
+    try:
+        svg_str = trace_image(img)
+        if svg_str and len(svg_str) < 64000:
+            return json.dumps({"caption": caption, "svg": svg_str, "source": dataset_name})
+    except Exception:
+        pass
+    return None
 
 def build_dataset(
     dataset_name,
@@ -60,13 +69,15 @@ def build_dataset(
 
     count = 0
 
-    with open(out_path, "a") as f:
-        pbar = tqdm.tqdm(total=target_count)
+    import concurrent.futures
+    import multiprocessing
+    max_workers = multiprocessing.cpu_count()
+
+    def row_generator():
         for row in ds:
             try:
                 img = row[image_col]
                 caption = row[text_col]
-
                 if isinstance(caption, int):
                     if cifar10_classes is not None:
                         caption = cifar10_classes[caption]
@@ -77,24 +88,48 @@ def build_dataset(
                             caption = str(caption)
                 else:
                     caption = str(caption)
-
-                svg_str = trace_image(img)
-
-                if len(svg_str) < 64000:
-                    f.write(
-                        json.dumps(
-                            {"caption": caption, "svg": svg_str, "source": dataset_name}
-                        )
-                        + "\n"
-                    )
-                    count += 1
-                    pbar.update(1)
-
-                if count >= target_count:
-                    break
-            except Exception as e:
-
+                yield (img, caption, dataset_name)
+            except Exception:
                 continue
+
+    with open(out_path, "a") as f:
+        pbar = tqdm.tqdm(total=target_count)
+        
+        with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+            futures = set()
+            row_iter = iter(row_generator())
+            
+            # Submit initial batch
+            for _ in range(max_workers * 2):
+                try:
+                    args = next(row_iter)
+                    futures.add(executor.submit(process_row, args))
+                except StopIteration:
+                    break
+                    
+            while futures and count < target_count:
+                done, futures = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
+                
+                for future in done:
+                    result = future.result()
+                    if result is not None:
+                        f.write(result + "\n")
+                        count += 1
+                        pbar.update(1)
+                        if count >= target_count:
+                            break
+                            
+                # Replenish tasks
+                while len(futures) < max_workers * 2 and count + len(futures) < target_count * 1.5:
+                    try:
+                        args = next(row_iter)
+                        futures.add(executor.submit(process_row, args))
+                    except StopIteration:
+                        break
+                        
+            # Cancel any remaining futures
+            for future in futures:
+                future.cancel()
 
         pbar.close()
     print(
@@ -105,7 +140,7 @@ if __name__ == "__main__":
 
     build_dataset(
         "uoft-cs/cifar10",
-        target_count=20000,
+        target_count=1000,
         image_col="img",
         text_col="label",
         streaming=False,
@@ -113,7 +148,7 @@ if __name__ == "__main__":
 
     build_dataset(
         "nbeerbower/japanese-photos-captioned",
-        target_count=5000,
+        target_count=500,
         image_col="image",
         text_col="caption",
         streaming=False,
