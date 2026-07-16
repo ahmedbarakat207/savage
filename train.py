@@ -2,6 +2,7 @@ import os
 
 os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
 os.environ["HF_XET_HIGH_PERFORMANCE"] = "1"
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import torch
 import argparse
 import json
@@ -57,7 +58,7 @@ def main():
 
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
-        torch_dtype=dtype,
+        dtype=dtype,
         device_map="auto" if args.kaggle else (device if device != "mps" else None),
         trust_remote_code=True,
     )
@@ -117,8 +118,8 @@ def main():
     final_dir = "/kaggle/working/savage-1" if args.kaggle else "./savage-1"
 
     if args.colab_fast:
-        batch_size = 4
-        grad_accum = 4
+        batch_size = 1
+        grad_accum = 16
         max_steps = 200
         logging_steps = 5
     elif args.kaggle:
