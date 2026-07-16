@@ -95,7 +95,7 @@ def build_dataset(
     with open(out_path, "a") as f:
         pbar = tqdm.tqdm(total=target_count)
         
-        with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = set()
             row_iter = iter(row_generator())
             
