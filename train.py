@@ -118,8 +118,8 @@ def main():
     final_dir = "/kaggle/working/savage-1" if args.kaggle else "./savage-1"
 
     if args.colab_fast:
-        batch_size = 1
-        grad_accum = 16
+        batch_size = 2
+        grad_accum = 8
         max_steps = 200
         logging_steps = 5
     elif args.kaggle:
