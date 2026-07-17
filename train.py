@@ -44,7 +44,7 @@ def main():
     parser.add_argument("--download-only", action="store_true")
     args = parser.parse_args()
 
-    model_id = "Qwen/Qwen2.5-Coder-0.5B"
+    model_id = "Qwen/Qwen2.5-Coder-1.5B"
 
     if torch.cuda.is_available():
         device = "cuda"
@@ -63,7 +63,7 @@ def main():
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
         dtype=dtype,
-        device_map="auto" if args.kaggle else (device if device != "mps" else None),
+        device_map=None if args.kaggle else (device if device != "mps" else None),
         trust_remote_code=True,
     )
     if not args.kaggle and device == "mps":
@@ -133,7 +133,7 @@ def main():
     elif args.kaggle:
         batch_size = 2
         grad_accum = 4
-        max_steps = 500
+        max_steps = 2000
         logging_steps = 1
     else:
         batch_size = 1
