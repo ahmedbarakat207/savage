@@ -118,9 +118,9 @@ def main():
     
     svg_content = response.replace("```xml", "").replace("```svg", "").replace("```", "").strip()
     
-    # We must prepend the '<svg' that we primed the model with
+    # We must prepend the '<svg' that we primed the model with, ensuring a space
     if not svg_content.startswith("<svg"):
-        svg_content = "<svg" + svg_content
+        svg_content = "<svg " + svg_content.lstrip()
 
     if "<svg" in svg_content:
         svg_content = svg_content[svg_content.find("<svg"):]
