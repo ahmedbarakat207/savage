@@ -1,3 +1,5 @@
+import os
+os.environ["HF_HOME"] = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hf_cache")
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel

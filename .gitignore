@@ -6,4 +6,4 @@ dataset_raw.jsonl
 merges.txt
 tokenizer/
 ckpt.pt
-vocab.json
+vocab.jsonhf_cache/
