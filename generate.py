@@ -37,7 +37,9 @@ def generate_transformers(args):
     model.to(device)
     model.eval()
 
-    prompt = f"<|im_start|>user\nGenerate an SVG for: {args.prompt}<|im_end|>\n<|im_start|>assistant\n"
+    # Prime the model to skip the VTracer comment entirely and start drawing the SVG
+    primer = '<?xml version="1" encoding="UTF-8"?><!-- Generator: visioncortex VTracer 0.6.12 -->\n<svg'
+    prompt = f"<|im_start|>user\nGenerate an SVG for: {args.prompt}<|im_end|>\n<|im_start|>assistant\n{primer}"
     inputs = tokenizer(prompt, return_tensors="pt").to(device)
     streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True) if not args.no_stream else None
 
@@ -116,6 +118,10 @@ def main():
     
     svg_content = response.replace("```xml", "").replace("```svg", "").replace("```", "").strip()
     
+    # We must prepend the '<svg' that we primed the model with
+    if not svg_content.startswith("<svg"):
+        svg_content = "<svg" + svg_content
+
     if "<svg" in svg_content:
         svg_content = svg_content[svg_content.find("<svg"):]
     if "</svg>" in svg_content:
