@@ -26,10 +26,14 @@ def generate_transformers(args):
         args.base_model, dtype=dtype, trust_remote_code=True
     )
 
-    try:
-        model = PeftModel.from_pretrained(base, args.lora_path)
-    except:
+    if "fused" in args.base_model.lower():
+        # The model is already fused, don't double-apply the adapter!
         model = base
+    else:
+        try:
+            model = PeftModel.from_pretrained(base, args.lora_path)
+        except:
+            model = base
 
     model.to(device)
     model.eval()
