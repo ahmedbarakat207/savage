@@ -129,12 +129,12 @@ def main():
         batch_size = 2
         grad_accum = 8
         max_steps = 200
-        logging_steps = 5
+        logging_steps = 1
     elif args.kaggle:
         batch_size = 2
         grad_accum = 4
         max_steps = 500
-        logging_steps = 10
+        logging_steps = 1
     else:
         batch_size = 1
         grad_accum = 8

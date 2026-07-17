@@ -6,7 +6,7 @@ from peft import PeftModel
 
 print("Loading base model...")
 base = AutoModelForCausalLM.from_pretrained(
-    "Qwen/Qwen2.5-Coder-0.5B", 
+    "Qwen/Qwen2.5-Coder-1.5B", 
     dtype=torch.float16,
     trust_remote_code=True
 )
@@ -20,6 +20,6 @@ model = model.merge_and_unload()
 print("Saving fused model to ./savage-fused...")
 model.save_pretrained("./savage-fused")
 
-tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-Coder-0.5B", trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-Coder-1.5B", trust_remote_code=True)
 tokenizer.save_pretrained("./savage-fused")
 print("Done!")

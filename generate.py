@@ -19,7 +19,7 @@ def generate_transformers(args):
     if (args.base_model.startswith("./") or args.base_model.startswith("/")) and not os.path.exists(args.base_model):
         print(f"Error: The local model path '{args.base_model}' does not exist.")
         print("Did you forget to run 'python fuse.py' to create the fused model?")
-        print("Alternatively, pass the base model explicitly: --base_model Qwen/Qwen2.5-Coder-0.5B")
+        print("Alternatively, pass the base model explicitly: --base_model Qwen/Qwen2.5-Coder-1.5B")
         exit(1)
 
     tokenizer = AutoTokenizer.from_pretrained(args.base_model, trust_remote_code=True)
@@ -77,7 +77,7 @@ def generate_mlx(args):
     if (args.base_model.startswith("./") or args.base_model.startswith("/")) and not os.path.exists(args.base_model):
         print(f"Error: The local model path '{args.base_model}' does not exist.")
         print("Did you forget to run 'python fuse.py' to create the fused model?")
-        print("Alternatively, pass the base model explicitly: --base_model Qwen/Qwen2.5-Coder-0.5B")
+        print("Alternatively, pass the base model explicitly: --base_model Qwen/Qwen2.5-Coder-1.5B")
         exit(1)
 
     model, tokenizer = load(args.base_model)
@@ -105,7 +105,7 @@ def main():
     parser.add_argument(
         "--engine", type=str, choices=["mlx", "transformers"], default="mlx"
     )
-    parser.add_argument("--temperature", type=float, default=0.7)
+    parser.add_argument("--temperature", type=float, default=0.1)
     parser.add_argument("--max_new_tokens", type=int, default=16384)
     parser.add_argument("--no-stream", action="store_true", help="Disable real-time terminal output to prevent freezing")
     args = parser.parse_args()
@@ -127,6 +127,8 @@ def main():
         svg_content = svg_content[svg_content.find("<svg"):]
     if "</svg>" in svg_content:
         svg_content = svg_content[:svg_content.find("</svg>") + 6]
+    else:
+        svg_content += "\n</svg>"
         
     with open(out_file, "w") as f:
         f.write(svg_content)
