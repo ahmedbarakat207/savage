@@ -42,6 +42,10 @@ def main():
     parser.add_argument("--colab-fast", action="store_true")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--download-only", action="store_true")
+    parser.add_argument("--batch_size", type=int, default=None)
+    parser.add_argument("--grad_accum", type=int, default=None)
+    parser.add_argument("--max_steps", type=int, default=None)
+    parser.add_argument("--logging_steps", type=int, default=None)
     args = parser.parse_args()
 
     model_id = "Qwen/Qwen2.5-Coder-1.5B"
@@ -130,8 +134,8 @@ def main():
         max_steps = 200
         logging_steps = 1
     elif args.kaggle:
-        batch_size = 2
-        grad_accum = 4
+        batch_size = 1
+        grad_accum = 8
         max_steps = 2000
         logging_steps = 1
     else:
@@ -139,6 +143,11 @@ def main():
         grad_accum = 8
         max_steps = 500
         logging_steps = 1
+
+    if args.batch_size is not None: batch_size = args.batch_size
+    if args.grad_accum is not None: grad_accum = args.grad_accum
+    if args.max_steps is not None: max_steps = args.max_steps
+    if args.logging_steps is not None: logging_steps = args.logging_steps
 
     training_args = TrainingArguments(
         output_dir=out_dir,
