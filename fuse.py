@@ -7,7 +7,7 @@ from peft import PeftModel
 print("Loading base model...")
 base = AutoModelForCausalLM.from_pretrained(
     "Qwen/Qwen2.5-Coder-0.5B", 
-    torch_dtype=torch.float16,
+    dtype=torch.float16,
     trust_remote_code=True
 )
 
