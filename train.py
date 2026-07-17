@@ -105,7 +105,7 @@ def main():
     if args.colab_fast:
         max_len = 2048
     else:
-        max_len = 4096 if args.kaggle else 16384
+        max_len = 2048 if args.kaggle else 16384
 
     tokenized_datasets = dataset.map(
         lambda x: tokenizer(x["text"], truncation=True, max_length=max_len),
@@ -164,6 +164,8 @@ def main():
         bf16=dtype == torch.bfloat16,
         fp16=dtype == torch.float16,
         dataloader_pin_memory=False,
+        dataloader_num_workers=2,
+        ddp_find_unused_parameters=False,
         optim="adamw_torch",
         report_to="none",
     )
