@@ -42,10 +42,10 @@ def main():
     parser.add_argument("--colab-fast", action="store_true")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--download-only", action="store_true")
-    parser.add_argument("--batch_size", type=int, default=None)
-    parser.add_argument("--grad_accum", type=int, default=None)
-    parser.add_argument("--max_steps", type=int, default=None)
-    parser.add_argument("--logging_steps", type=int, default=None)
+    parser.add_argument("--batch-size", type=int, default=None)
+    parser.add_argument("--grad-accum", type=int, default=None)
+    parser.add_argument("--max-steps", type=int, default=None)
+    parser.add_argument("--logging-steps", type=int, default=None)
     args = parser.parse_args()
 
     model_id = "Qwen/Qwen2.5-Coder-1.5B"
@@ -105,7 +105,7 @@ def main():
     if args.colab_fast:
         max_len = 2048
     else:
-        max_len = 2048 if args.kaggle else 16384
+        max_len = 4096 if args.kaggle else 16384
 
     tokenized_datasets = dataset.map(
         lambda x: tokenizer(x["text"], truncation=True, max_length=max_len),
