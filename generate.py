@@ -16,16 +16,13 @@ def generate_transformers(args):
     else:
         device, dtype = "cpu", torch.float32
 
-    if (args.base_model.startswith("./") or args.base_model.startswith("/")) and not os.path.exists(args.base_model):
-        print(f"Error: The local model path '{args.base_model}' does not exist.")
-        print("Did you forget to run 'python fuse.py' to create the fused model?")
-        print("Alternatively, pass the base model explicitly: --base_model Qwen/Qwen2.5-Coder-1.5B")
-        exit(1)
-
     tokenizer = AutoTokenizer.from_pretrained(args.base_model, trust_remote_code=True)
     base = AutoModelForCausalLM.from_pretrained(
         args.base_model, dtype=dtype, trust_remote_code=True
     )
+    
+    # Resize base model embeddings to match the extended tokenizer before applying LoRA
+    base.resize_token_embeddings(len(tokenizer))
 
     if "fused" in args.base_model.lower():
         model = base

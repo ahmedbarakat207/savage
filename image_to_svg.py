@@ -30,6 +30,42 @@ except ImportError:
 
 PRESETS = [
     dict(
+        max_dim=1024,
+        blur=0.0,
+        color_precision=8,
+        layer_difference=4,
+        filter_speckle=1,
+        corner_threshold=25,
+        length_threshold=1.5,
+        splice_threshold=15,
+        path_precision=3,
+        mode="spline",
+    ),
+    dict(
+        max_dim=768,
+        blur=0.0,
+        color_precision=8,
+        layer_difference=6,
+        filter_speckle=1,
+        corner_threshold=30,
+        length_threshold=2.0,
+        splice_threshold=20,
+        path_precision=2,
+        mode="spline",
+    ),
+    dict(
+        max_dim=640,
+        blur=0.0,
+        color_precision=8,
+        layer_difference=8,
+        filter_speckle=2,
+        corner_threshold=35,
+        length_threshold=2.5,
+        splice_threshold=25,
+        path_precision=2,
+        mode="spline",
+    ),
+    dict(
         max_dim=512,
         blur=0.0,
         color_precision=8,
@@ -191,6 +227,33 @@ NUM_RE = re.compile(r"-?\d+\.\d+")
 
 CUTOUT_PRESETS = [
     dict(
+        max_dim=384,
+        filter_speckle=2,
+        corner_threshold=20,
+        length_threshold=1.5,
+        splice_threshold=15,
+        path_precision=2,
+        mode="polygon",
+    ),
+    dict(
+        max_dim=256,
+        filter_speckle=2,
+        corner_threshold=25,
+        length_threshold=2.0,
+        splice_threshold=20,
+        path_precision=2,
+        mode="polygon",
+    ),
+    dict(
+        max_dim=200,
+        filter_speckle=3,
+        corner_threshold=30,
+        length_threshold=2.0,
+        splice_threshold=20,
+        path_precision=1,
+        mode="polygon",
+    ),
+    dict(
         max_dim=182,
         filter_speckle=4,
         corner_threshold=35,
@@ -334,10 +397,57 @@ def _round_numbers(text, ndigits):
 
     return NUM_RE.sub(_r, text)
 
-def minify_svg(text, path_precision=1):
+def sort_svg_attributes(svg_text):
+    def sort_attrs(match):
+        tag = match.group(1)
+        attrs_str = match.group(2)
+        closing = match.group(3)
+        
+        attrs = re.findall(r'([a-zA-Z0-9\-:]+)="([^"]*)"', attrs_str)
+        # Custom order: id, d, fill, stroke, transform, viewBox, everything else alphabetically
+        priority = {"id": 0, "d": 1, "fill": 2, "stroke": 3, "transform": 4, "viewBox": 5}
+        attrs.sort(key=lambda x: (priority.get(x[0], 100), x[0]))
+        
+        new_attrs_str = " ".join([f'{k}="{v}"' for k, v in attrs])
+        if new_attrs_str:
+            return f"<{tag} {new_attrs_str}{closing}"
+        else:
+            return f"<{tag}{closing}"
+            
+    return re.sub(r'<([a-zA-Z0-9\-:]+)\s+([^>]*?)(/?>)', sort_attrs, svg_text)
+
+def minify_svg(text, path_precision=2):
+    import subprocess
+    import shutil
+    svgo_path = shutil.which("svgo")
+    if not svgo_path and os.path.exists("./node_modules/.bin/svgo"):
+        svgo_path = "./node_modules/.bin/svgo"
+        
+    args = None
+    if svgo_path:
+        args = [svgo_path, "--multipass", "-p", str(max(path_precision, 2)), "-i", "-", "-o", "-"]
+    elif shutil.which("npx"):
+        args = ["npx", "--no-install", "svgo", "--multipass", "-p", str(max(path_precision, 2)), "-i", "-", "-o", "-"]
+
+    if args:
+        try:
+            process = subprocess.Popen(
+                args,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            stdout, stderr = process.communicate(input=text)
+            if process.returncode == 0 and stdout:
+                text = stdout.strip()
+        except Exception:
+            pass
+
     text = re.sub(r">\s+<", "><", text.strip())
     text = _round_numbers(text, path_precision)
     text = re.sub(r"[ \t]+", " ", text)
+    text = sort_svg_attributes(text)
     return text
 
 def trace_with_preset(orig_img, preset, posterize_levels=None):

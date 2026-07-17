@@ -63,7 +63,23 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+        
+    # --- Tokenizer Optimization for SVG ---
+    from transformers import AddedToken
+    
+    # 1. Define Explicit Control Tokens
+    custom_tokens = [
+        "<svg>", "</svg>", "<path", "/>", "<g>", "</g>", "<rect",
+        "d=", "fill=", "stroke=", "viewBox=", "transform=",
+        "M", "L", "C", "S", "Q", "T", "Z",
+        "m", "l", "c", "s", "q", "t", "z"
+    ]
+        
+    added_tokens = [AddedToken(t, rstrip=False, lstrip=False, single_word=False, normalized=False) for t in custom_tokens]
+    tokenizer.add_tokens(added_tokens)
+    # ------------------------------------
 
+    # Qwen2.5 natively uses RoPE with up to 32k context, which easily handles our ~2500 tokens.
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
         dtype=dtype,
@@ -72,6 +88,8 @@ def main():
     )
     if not args.kaggle and device == "mps":
         model.to("mps")
+        
+    model.resize_token_embeddings(len(tokenizer))
 
     if args.download_only:
         print(f"Successfully downloaded the model '{model_id}' to the Hugging Face cache.")
@@ -90,22 +108,27 @@ def main():
             "up_proj",
             "down_proj",
         ],
+        modules_to_save=["embed_tokens", "lm_head"],
         lora_dropout=0.05,
         bias="none",
         task_type="CAUSAL_LM",
     )
     model = get_peft_model(model, lora_config)
 
-    dataset_path = "dataset_raw.jsonl"
-    if args.kaggle and os.path.exists("/kaggle/input/savage-svg-dataset/dataset_raw.jsonl"):
-        dataset_path = "/kaggle/input/savage-svg-dataset/dataset_raw.jsonl"
+    dataset_path = (
+        "/kaggle/input/savage-svg-dataset/dataset_raw.jsonl"
+        if args.kaggle
+        else "dataset_raw.jsonl"
+    )
+    if not os.path.exists(dataset_path):
+        dataset_path = "dataset_raw.jsonl"
 
     dataset = load_data(dataset_path).train_test_split(test_size=0.05)
 
     if args.colab_fast:
         max_len = 2048
     else:
-        max_len = 4096 if args.kaggle else 16384
+        max_len = 8192 if args.kaggle else 16384
 
     tokenized_datasets = dataset.map(
         lambda x: tokenizer(x["text"], truncation=True, max_length=max_len),
@@ -134,10 +157,10 @@ def main():
         max_steps = 200
         logging_steps = 1
     elif args.kaggle:
-        batch_size = 1
-        grad_accum = 8
-        max_steps = 2000
-        logging_steps = 1
+        batch_size = 2
+        grad_accum = 4
+        max_steps = 500
+        logging_steps = 10
     else:
         batch_size = 1
         grad_accum = 8
@@ -157,7 +180,7 @@ def main():
         gradient_checkpointing=True,
         learning_rate=2e-4,
         logging_steps=logging_steps,
-        max_steps=10 if args.quick_test else max_steps,
+        num_train_epochs=3,
         save_steps=5 if args.quick_test else 100,
         eval_strategy="steps",
         eval_steps=5 if args.quick_test else 100,

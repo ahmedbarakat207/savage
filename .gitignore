@@ -7,4 +7,3 @@ merges.txt
 tokenizer/
 ckpt.pt
 vocab.json
-hf_cache/
