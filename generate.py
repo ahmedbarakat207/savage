@@ -23,7 +23,7 @@ def generate_transformers(args):
 
     tokenizer = AutoTokenizer.from_pretrained(args.base_model, trust_remote_code=True)
     base = AutoModelForCausalLM.from_pretrained(
-        args.base_model, torch_dtype=dtype, trust_remote_code=True
+        args.base_model, dtype=dtype, trust_remote_code=True
     )
 
     try:
@@ -36,7 +36,7 @@ def generate_transformers(args):
 
     prompt = f"<|im_start|>user\nGenerate an SVG for: {args.prompt}<|im_end|>\n<|im_start|>assistant\n"
     inputs = tokenizer(prompt, return_tensors="pt").to(device)
-    streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+    streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True) if not args.no_stream else None
 
     with torch.no_grad():
         outputs = model.generate(
@@ -101,6 +101,7 @@ def main():
     )
     parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--max_new_tokens", type=int, default=16384)
+    parser.add_argument("--no-stream", action="store_true", help="Disable real-time terminal output to prevent freezing")
     args = parser.parse_args()
 
     if args.engine == "mlx":
