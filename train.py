@@ -39,6 +39,7 @@ def main():
     parser.add_argument("--kaggle", action="store_true")
     parser.add_argument("--colab-fast", action="store_true")
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--download-only", action="store_true")
     args = parser.parse_args()
 
     model_id = "Qwen/Qwen2.5-Coder-0.5B"
@@ -65,6 +66,11 @@ def main():
     )
     if not args.kaggle and device == "mps":
         model.to("mps")
+
+    if args.download_only:
+        print(f"Successfully downloaded the model '{model_id}' to the Hugging Face cache.")
+        print("Exiting because --download-only was specified.")
+        exit(0)
 
     lora_config = LoraConfig(
         r=16,

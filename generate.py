@@ -109,13 +109,17 @@ def main():
         response = generate_transformers(args)
 
     out_file = args.prompt.replace(" ", "_") + ".svg"
+    
+    svg_content = response.replace("```xml", "").replace("```svg", "").replace("```", "").strip()
+    
+    # Extract only the actual SVG part to avoid XML parsing errors from conversational text
+    if "<svg" in svg_content:
+        svg_content = svg_content[svg_content.find("<svg"):]
+    if "</svg>" in svg_content:
+        svg_content = svg_content[:svg_content.find("</svg>") + 6]
+        
     with open(out_file, "w") as f:
-        f.write(
-            response.replace("```xml", "")
-            .replace("```svg", "")
-            .replace("```", "")
-            .strip()
-        )
+        f.write(svg_content)
 
 if __name__ == "__main__":
     main()
