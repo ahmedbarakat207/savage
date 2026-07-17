@@ -46,8 +46,6 @@ def build_dataset(
     try:
         ds = load_dataset(dataset_name, split="train", streaming=streaming)
     except Exception as e:
-        print(f"Warning: failed to load dataset via `datasets`: {e}")
-        # Fallback: handle CIFAR-10 via torchvision if HF Hub parsing fails
         if "cifar10" in dataset_name.lower():
             try:
                 from torchvision.datasets import CIFAR10
@@ -98,8 +96,6 @@ def build_dataset(
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = set()
             row_iter = iter(row_generator())
-            
-            # Submit initial batch
             for _ in range(max_workers * 2):
                 try:
                     args = next(row_iter)
@@ -118,16 +114,12 @@ def build_dataset(
                         pbar.update(1)
                         if count >= target_count:
                             break
-                            
-                # Replenish tasks
                 while len(futures) < max_workers * 2 and count + len(futures) < target_count * 1.5:
                     try:
                         args = next(row_iter)
                         futures.add(executor.submit(process_row, args))
                     except StopIteration:
                         break
-                        
-            # Cancel any remaining futures
             for future in futures:
                 future.cancel()
 

@@ -116,7 +116,6 @@ def main():
             range(min(10, len(tokenized_datasets["test"])))
         )
     elif args.colab_fast:
-        # subset to 2000 items for extremely fast free-tier training
         tokenized_datasets["train"] = tokenized_datasets["train"].select(
             range(min(2000, len(tokenized_datasets["train"])))
         )

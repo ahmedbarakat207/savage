@@ -27,7 +27,6 @@ def generate_transformers(args):
     )
 
     if "fused" in args.base_model.lower():
-        # The model is already fused, don't double-apply the adapter!
         model = base
     else:
         try:
@@ -117,7 +116,6 @@ def main():
     
     svg_content = response.replace("```xml", "").replace("```svg", "").replace("```", "").strip()
     
-    # Extract only the actual SVG part to avoid XML parsing errors from conversational text
     if "<svg" in svg_content:
         svg_content = svg_content[svg_content.find("<svg"):]
     if "</svg>" in svg_content:
