@@ -46,7 +46,7 @@ def main():
     parser.add_argument("--grad-accum", type=int, default=None)
     parser.add_argument("--max-steps", type=int, default=None)
     parser.add_argument("--logging-steps", type=int, default=None)
-    parser.add_argument("--max-len", type=int, default=None)
+    parser.add_argument("--train-embeddings", action="store_true", help="Train embed_tokens and lm_head (much slower and memory intensive)")
     args = parser.parse_args()
 
     model_id = "Qwen/Qwen2.5-Coder-3B"
@@ -64,7 +64,7 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
-        
+
     # --- Tokenizer Optimization for SVG ---
     from transformers import AddedToken
     
@@ -109,13 +109,14 @@ def main():
             "up_proj",
             "down_proj",
         ],
-        modules_to_save=["embed_tokens", "lm_head"],
-        ensure_weight_tying=True,
+        modules_to_save=["embed_tokens", "lm_head"] if args.train_embeddings else None,
+        ensure_weight_tying=True if args.train_embeddings else False,
         lora_dropout=0.05,
         bias="none",
         task_type="CAUSAL_LM",
     )
     model = get_peft_model(model, lora_config)
+    model.print_trainable_parameters()
 
     dataset_path = (
         "/kaggle/input/savage-svg-dataset/dataset_raw.jsonl"
@@ -190,6 +191,8 @@ def main():
         gradient_accumulation_steps=grad_accum,
         gradient_checkpointing=True,
         learning_rate=2e-4,
+        lr_scheduler_type="cosine",
+        warmup_ratio=0.03,
         logging_steps=logging_steps,
         max_steps=max_steps,
         num_train_epochs=3,
@@ -198,7 +201,8 @@ def main():
         eval_steps=5 if args.quick_test else 100,
         bf16=dtype == torch.bfloat16,
         fp16=dtype == torch.float16,
-        dataloader_pin_memory=False,
+        group_by_length=True,
+        dataloader_pin_memory=True,
         dataloader_num_workers=2,
         ddp_find_unused_parameters=False,
         optim=optim,
@@ -222,6 +226,9 @@ def main():
     trainer.train(resume_from_checkpoint=resume_ckpt)
     trainer.model.save_pretrained(final_dir)
     tokenizer.save_pretrained(final_dir)
+
+    if torch.distributed.is_initialized():
+        torch.distributed.destroy_process_group()
 
 if __name__ == "__main__":
     main()
