@@ -46,6 +46,7 @@ def main():
     parser.add_argument("--grad-accum", type=int, default=None)
     parser.add_argument("--max-steps", type=int, default=None)
     parser.add_argument("--logging-steps", type=int, default=None)
+    parser.add_argument("--max-len", type=int, default=None)
     args = parser.parse_args()
 
     model_id = "Qwen/Qwen2.5-Coder-3B"
@@ -79,11 +80,11 @@ def main():
     tokenizer.add_tokens(added_tokens)
     # ------------------------------------
 
-    # Qwen2.5 natively uses RoPE with up to 32k context, which easily handles our ~2500 tokens.
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
         dtype=dtype,
         device_map=None if args.kaggle else (device if device != "mps" else None),
+        attn_implementation="sdpa" if torch.cuda.is_available() else None,
         trust_remote_code=True,
     )
     if not args.kaggle and device == "mps":
@@ -109,6 +110,7 @@ def main():
             "down_proj",
         ],
         modules_to_save=["embed_tokens", "lm_head"],
+        ensure_weight_tying=True,
         lora_dropout=0.05,
         bias="none",
         task_type="CAUSAL_LM",
@@ -125,10 +127,12 @@ def main():
 
     dataset = load_data(dataset_path).train_test_split(test_size=0.05)
 
-    if args.colab_fast:
+    if args.max_len is not None:
+        max_len = args.max_len
+    elif args.colab_fast:
         max_len = 2048
     else:
-        max_len = 8192 if args.kaggle else 16384
+        max_len = 2048 if args.kaggle else 4096
 
     tokenized_datasets = dataset.map(
         lambda x: tokenizer(x["text"], truncation=True, max_length=max_len),
@@ -172,6 +176,13 @@ def main():
     if args.max_steps is not None: max_steps = args.max_steps
     if args.logging_steps is not None: logging_steps = args.logging_steps
 
+    optim = "adamw_torch"
+    try:
+        import bitsandbytes
+        optim = "paged_adamw_8bit"
+    except ImportError:
+        pass
+
     training_args = TrainingArguments(
         output_dir=out_dir,
         per_device_train_batch_size=batch_size,
@@ -190,7 +201,7 @@ def main():
         dataloader_pin_memory=False,
         dataloader_num_workers=2,
         ddp_find_unused_parameters=False,
-        optim="adamw_torch",
+        optim=optim,
         report_to="none",
     )
 

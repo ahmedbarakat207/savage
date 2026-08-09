@@ -8,3 +8,4 @@ vtracer
 hf_transfer
 torchao>=0.16.1
 gdown
+bitsandbytes
