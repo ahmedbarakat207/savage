@@ -48,7 +48,7 @@ def main():
     parser.add_argument("--logging-steps", type=int, default=None)
     args = parser.parse_args()
 
-    model_id = "Qwen/Qwen2.5-Coder-1.5B"
+    model_id = "Qwen/Qwen2.5-Coder-3B"
 
     if torch.cuda.is_available():
         device = "cuda"
@@ -180,6 +180,7 @@ def main():
         gradient_checkpointing=True,
         learning_rate=2e-4,
         logging_steps=logging_steps,
+        max_steps=max_steps,
         num_train_epochs=3,
         save_steps=5 if args.quick_test else 100,
         eval_strategy="steps",

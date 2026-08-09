@@ -47,7 +47,7 @@ if __name__ == "__main__":
         json.dump(new_tokens, f)
 
     # Test compression with Qwen + these tokens
-    tok = AutoTokenizer.from_pretrained('Qwen/Qwen2.5-Coder-0.5B', trust_remote_code=True)
+    tok = AutoTokenizer.from_pretrained('Qwen/Qwen2.5-Coder-3B', trust_remote_code=True)
     with open('dataset_raw.jsonl', 'r') as f:
         for line in f:
             sample_svg = json.loads(line)["svg"]

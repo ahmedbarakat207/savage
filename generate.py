@@ -74,7 +74,7 @@ def generate_mlx(args):
     if (args.base_model.startswith("./") or args.base_model.startswith("/")) and not os.path.exists(args.base_model):
         print(f"Error: The local model path '{args.base_model}' does not exist.")
         print("Did you forget to run 'python fuse.py' to create the fused model?")
-        print("Alternatively, pass the base model explicitly: --base_model Qwen/Qwen2.5-Coder-1.5B")
+        print("Alternatively, pass the base model explicitly: --base_model Qwen/Qwen2.5-Coder-3B")
         exit(1)
 
     model, tokenizer = load(args.base_model)

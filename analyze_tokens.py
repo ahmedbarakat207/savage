@@ -36,7 +36,7 @@ if __name__ == "__main__":
     print("Top 50 examples:", new_tokens[-50:])
     
     # Load Qwen tokenizer
-    qwen_tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-Coder-0.5B", trust_remote_code=True)
+    qwen_tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-Coder-3B", trust_remote_code=True)
     initial_size = len(qwen_tokenizer)
     
     # Filter tokens that are already efficiently tokenized
