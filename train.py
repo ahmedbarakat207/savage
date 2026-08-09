@@ -193,7 +193,7 @@ def main():
         gradient_checkpointing=True,
         learning_rate=2e-4,
         lr_scheduler_type="cosine",
-        warmup_ratio=0.03,
+        warmup_steps=max(1, int(max_steps * 0.03)),
         logging_steps=logging_steps,
         max_steps=max_steps,
         num_train_epochs=3,
