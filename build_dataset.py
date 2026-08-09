@@ -93,7 +93,7 @@ if __name__ == "__main__":
         target_count=20000,
         image_col="img",
         text_col="label",
-        streaming=True,
+        streaming=False,
     )
 
     build_dataset(
