@@ -89,7 +89,7 @@ def build_dataset(
 if __name__ == "__main__":
 
     build_dataset(
-        "cifar10",
+        "uoft-cs/cifar10",
         target_count=20000,
         image_col="img",
         text_col="label",
