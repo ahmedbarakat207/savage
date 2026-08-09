@@ -46,6 +46,7 @@ def main():
     parser.add_argument("--grad-accum", type=int, default=None)
     parser.add_argument("--max-steps", type=int, default=None)
     parser.add_argument("--logging-steps", type=int, default=None)
+    parser.add_argument("--max-len", type=int, default=None)
     parser.add_argument("--train-embeddings", action="store_true", help="Train embed_tokens and lm_head (much slower and memory intensive)")
     args = parser.parse_args()
 
