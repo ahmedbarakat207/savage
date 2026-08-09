@@ -43,13 +43,22 @@ def build_dataset(
     text_col="text",
     streaming=True,
 ):
+    print(f"\n==========================================")
     print(f"Downloading photo dataset {dataset_name} for {target_count} photos...")
+    print(f"==========================================")
     cifar10_classes = None
-    ds = load_dataset(dataset_name, split="train", streaming=streaming)
+    token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+
+    try:
+        ds = load_dataset(dataset_name, split="train", streaming=streaming, token=token)
+    except Exception as e:
+        print(f"[WARNING] Could not load dataset '{dataset_name}': {e}")
+        print(f"[INFO] Skipping '{dataset_name}' and continuing to next dataset...")
+        return
 
     count = 0
 
-    with open(out_path, "a") as f:
+    with open(out_path, "a", encoding="utf-8") as f:
         with tqdm.tqdm(total=target_count) as pbar:
             for row in ds:
                 try:
@@ -75,6 +84,7 @@ def build_dataset(
                             )
                             + "\n"
                         )
+                        f.flush()
                         count += 1
                         pbar.update(1)
 
@@ -127,3 +137,4 @@ if __name__ == "__main__":
         text_col="label",
         streaming=True,
     )
+
