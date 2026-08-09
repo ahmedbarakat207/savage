@@ -45,24 +45,7 @@ def build_dataset(
 ):
     print(f"Downloading photo dataset {dataset_name} for {target_count} photos...")
     cifar10_classes = None
-    if "cifar10" in dataset_name.lower():
-        try:
-            from torchvision.datasets import CIFAR10
-
-            cifar = CIFAR10(root="./.cache", train=True, download=True)
-            cifar10_classes = cifar.classes
-
-            def _cifar_gen():
-                for img, label in cifar:
-                    yield {image_col: img, text_col: label}
-
-            ds = _cifar_gen()
-            streaming = False
-        except Exception as e2:
-            print(f"CIFAR fallback failed: {e2}")
-            ds = load_dataset(dataset_name, split="train", streaming=streaming)
-    else:
-        ds = load_dataset(dataset_name, split="train", streaming=streaming)
+    ds = load_dataset(dataset_name, split="train", streaming=streaming)
 
     count = 0
 
@@ -110,7 +93,7 @@ if __name__ == "__main__":
         target_count=20000,
         image_col="img",
         text_col="label",
-        streaming=False,
+        streaming=True,
     )
 
     build_dataset(
