@@ -198,6 +198,7 @@ def main():
         max_steps=max_steps,
         num_train_epochs=3,
         save_steps=5 if args.quick_test else 100,
+        save_total_limit=2,
         eval_strategy="steps",
         eval_steps=5 if args.quick_test else 100,
         bf16=dtype == torch.bfloat16,
