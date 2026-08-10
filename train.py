@@ -98,6 +98,7 @@ def main():
         print("Exiting because --download-only was specified.")
         exit(0)
 
+    train_embeds = args.train_embeddings or len(custom_tokens) > 0
     lora_config = LoraConfig(
         r=16,
         lora_alpha=32,
@@ -110,8 +111,8 @@ def main():
             "up_proj",
             "down_proj",
         ],
-        modules_to_save=["embed_tokens", "lm_head"] if args.train_embeddings else None,
-        ensure_weight_tying=True if args.train_embeddings else False,
+        modules_to_save=["embed_tokens", "lm_head"] if train_embeds else None,
+        ensure_weight_tying=True if train_embeds else False,
         lora_dropout=0.05,
         bias="none",
         task_type="CAUSAL_LM",
@@ -136,8 +137,28 @@ def main():
     else:
         max_len = 2048 if args.kaggle else 4096
 
+    assistant_prefix = "<|im_start|>assistant\n"
+    assistant_prefix_ids = tokenizer.encode(assistant_prefix, add_special_tokens=False)
+
+    def tokenize_and_mask(examples):
+        inputs = tokenizer(examples["text"], truncation=True, max_length=max_len)
+        all_labels = []
+        for input_ids in inputs["input_ids"]:
+            labels = list(input_ids)
+            prefix_len = len(assistant_prefix_ids)
+            mask_until = 0
+            for i in range(len(input_ids) - prefix_len + 1):
+                if input_ids[i : i + prefix_len] == assistant_prefix_ids:
+                    mask_until = i + prefix_len
+                    break
+            for j in range(mask_until):
+                labels[j] = -100
+            all_labels.append(labels)
+        inputs["labels"] = all_labels
+        return inputs
+
     tokenized_datasets = dataset.map(
-        lambda x: tokenizer(x["text"], truncation=True, max_length=max_len),
+        tokenize_and_mask,
         batched=True,
         remove_columns=["text"],
     )

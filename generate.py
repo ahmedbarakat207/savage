@@ -10,16 +10,19 @@ def generate_transformers(args):
     from peft import PeftModel
 
     if torch.cuda.is_available():
-        device, dtype = "cuda", torch.bfloat16
+        device = "cuda"
+        dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
     elif torch.backends.mps.is_available():
         device, dtype = "mps", torch.float16
     else:
         device, dtype = "cpu", torch.float32
 
+    print(f"Using device: {device} ({dtype})")
+
     tokenizer_source = args.lora_path if (os.path.exists(args.lora_path) and "fused" not in args.base_model.lower()) else args.base_model
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_source, trust_remote_code=True)
     base = AutoModelForCausalLM.from_pretrained(
-        args.base_model, dtype=dtype, trust_remote_code=True
+        args.base_model, torch_dtype=dtype, trust_remote_code=True
     )
     
     # Resize base model embeddings to match the extended tokenizer before applying LoRA
@@ -53,7 +56,7 @@ def generate_transformers(args):
     generated_text = tokenizer.decode(
         outputs[0][inputs.input_ids.shape[1] :], skip_special_tokens=True
     )
-    return generated_text
+    return primer + generated_text
 
 def generate_mlx(args):
     try:
@@ -92,6 +95,23 @@ def generate_mlx(args):
     print(f"\nPerformance: {num_tokens / (time.time() - start_time):.2f} tokens/second")
     return response
 
+def validate_and_clean_svg(svg_str):
+    from xml.dom import minidom
+    try:
+        minidom.parseString(svg_str)
+        return svg_str
+    except Exception as e:
+        print(f"[WARNING] Generated SVG failed strict XML validation ({e}). Attempting syntax cleanup...")
+        # Repair unclosed tags or invalid attributes if needed
+        import re
+        svg_clean = re.sub(r'<path\s+[^\"<>]+\"(M[^\"]+)\"\s+[^\"<>]+\"(#[^\"]+)\"\s+[^\"<>]+\"(translate[^\"]+)\"/>',
+                           r'<path d="\1" fill="\2" transform="\3"/>', svg_str)
+        try:
+            minidom.parseString(svg_clean)
+            return svg_clean
+        except Exception:
+            return svg_str
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--prompt", type=str, required=True)
@@ -114,10 +134,6 @@ def main():
     
     svg_content = response.replace("```xml", "").replace("```svg", "").replace("```", "").strip()
     
-    # We must prepend the '<svg' that we primed the model with, ensuring a space
-    if not svg_content.startswith("<svg"):
-        svg_content = "<svg " + svg_content.lstrip()
-
     if "<svg" in svg_content:
         svg_content = svg_content[svg_content.find("<svg"):]
     if "</svg>" in svg_content:
@@ -125,8 +141,11 @@ def main():
     else:
         svg_content += "\n</svg>"
         
+    svg_content = validate_and_clean_svg(svg_content)
+
     with open(out_file, "w") as f:
         f.write(svg_content)
+    print(f"\nSaved generated SVG to: {out_file}")
 
 if __name__ == "__main__":
     main()
