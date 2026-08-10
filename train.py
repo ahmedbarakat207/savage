@@ -224,7 +224,6 @@ def main():
         eval_steps=5 if args.quick_test else 100,
         bf16=dtype == torch.bfloat16,
         fp16=dtype == torch.float16,
-        group_by_length=True,
         dataloader_pin_memory=True,
         dataloader_num_workers=2,
         ddp_find_unused_parameters=False,
