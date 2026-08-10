@@ -16,7 +16,8 @@ def generate_transformers(args):
     else:
         device, dtype = "cpu", torch.float32
 
-    tokenizer = AutoTokenizer.from_pretrained(args.base_model, trust_remote_code=True)
+    tokenizer_source = args.lora_path if (os.path.exists(args.lora_path) and "fused" not in args.base_model.lower()) else args.base_model
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_source, trust_remote_code=True)
     base = AutoModelForCausalLM.from_pretrained(
         args.base_model, dtype=dtype, trust_remote_code=True
     )
@@ -27,10 +28,7 @@ def generate_transformers(args):
     if "fused" in args.base_model.lower():
         model = base
     else:
-        try:
-            model = PeftModel.from_pretrained(base, args.lora_path)
-        except:
-            model = base
+        model = PeftModel.from_pretrained(base, args.lora_path)
 
     model.to(device)
     model.eval()
