@@ -13,7 +13,7 @@ from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
     TrainingArguments,
-    DataCollatorForLanguageModeling,
+    DataCollatorForSeq2Seq,
     Trainer,
 )
 from peft import LoraConfig, get_peft_model
@@ -175,8 +175,9 @@ def main():
             range(min(2000, len(tokenized_datasets["train"])))
         )
 
-    out_dir = "/kaggle/working/savage-lora" if args.kaggle else "./savage-lora"
-    final_dir = "/kaggle/working/savage-1" if args.kaggle else "./savage-1"
+    savage_dir = os.path.dirname(os.path.abspath(__file__))
+    out_dir = os.path.join(savage_dir, "savage-lora")
+    final_dir = os.path.join(savage_dir, "savage-1")
 
     if args.colab_fast:
         batch_size = 2
@@ -236,7 +237,9 @@ def main():
         train_dataset=tokenized_datasets["train"],
         eval_dataset=tokenized_datasets["test"],
         args=training_args,
-        data_collator=DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False),
+        data_collator=DataCollatorForSeq2Seq(
+            tokenizer=tokenizer, pad_to_multiple_of=8, return_tensors="pt", label_pad_token_id=-100
+        ),
     )
 
     resume_ckpt = None
@@ -246,8 +249,11 @@ def main():
             print(f"Found existing checkpoints in {out_dir}, resuming training...")
 
     trainer.train(resume_from_checkpoint=resume_ckpt)
+    print(f"Saving final adapters to {final_dir} and {out_dir}...")
     trainer.model.save_pretrained(final_dir)
     tokenizer.save_pretrained(final_dir)
+    trainer.model.save_pretrained(out_dir)
+    tokenizer.save_pretrained(out_dir)
 
     if torch.distributed.is_initialized():
         torch.distributed.destroy_process_group()
