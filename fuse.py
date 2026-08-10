@@ -27,7 +27,7 @@ def main():
     print(f"Loading base model from '{args.base_model}'...")
     base = AutoModelForCausalLM.from_pretrained(
         args.base_model,
-        torch_dtype=torch.float16,
+        dtype=torch.float16,
         trust_remote_code=True
     )
 
